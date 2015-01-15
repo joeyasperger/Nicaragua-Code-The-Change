@@ -1,6 +1,11 @@
 import os
 import glob
 import time
+import urllib
+import urllib2
+import time
+import datetime
+
  
 os.system('sudo modprobe w1-gpio')
 os.system('sudo modprobe w1-therm')
@@ -28,5 +33,10 @@ def read_temp():
         return temp_c, temp_f
     
 while True:
-    print(read_temp())  
+    temp_c, temp_f = read_temp()
+    print temp_c
+    i = datetime.datetime.now()
+    url = 'http://169.254.119.4:3000/new_reading?temp=%f&time=%s' % (temp_c, i.isoformat())
+    response = urllib2.urlopen(url)
+    html = response.read()
     time.sleep(1)
