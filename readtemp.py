@@ -5,8 +5,14 @@ import urllib
 import urllib2
 import time
 import datetime
-
+import RPi.GPIO as io
+io.setmode(io.BCM)
  
+doorpin = 23
+io.setup(doorpin, io.IN, pull_up_down=io.PUD_UP)
+
+ipaddress = "169.254.185.226"
+
 os.system('sudo modprobe w1-gpio')
 os.system('sudo modprobe w1-therm')
  
@@ -35,8 +41,10 @@ def read_temp():
 while True:
     temp_c, temp_f = read_temp()
     print temp_c
+    if io.input(doorpin):
+        print "DOOR ALARM"
     i = datetime.datetime.now()
-    url = 'http://169.254.119.4:3000/new_reading?temp=%f&time=%s' % (temp_c, i.isoformat())
+    url = 'http://%s:3000/new_reading?temp=%f&time=%s' % (ipaddress,temp_c, i.isoformat())
     response = urllib2.urlopen(url)
     html = response.read()
     time.sleep(1)
