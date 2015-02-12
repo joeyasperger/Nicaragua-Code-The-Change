@@ -6,12 +6,13 @@ import urllib2
 import time
 import datetime
 import RPi.GPIO as io
+import json
 io.setmode(io.BCM)
  
 doorpin = 23
 io.setup(doorpin, io.IN, pull_up_down=io.PUD_UP)
 
-ipaddress = "169.254.185.226"
+ipaddress = "169.254.65.56"
 
 #sets up the raspberry pi to read the temperature input 
 os.system('sudo modprobe w1-gpio')
@@ -41,18 +42,31 @@ def read_temp():
         #convert temperature value to celsius and fahrenheit
         temp_string = lines[1][equals_pos+2:]
         temp_c = float(temp_string) / 1000.0
-        temp_f = temp_c * 9.0 / 5.0 + 32.0
-        return temp_c, temp_f
+        #temp_f = temp_c * 9.0 / 5.0 + 32.0
+        return temp_c
     
+def detectDoor():
+    if io.input(doorpin):
+        return True
+    else:
+        return False 
+
 while True:
     #reads temperature every second and sends to server
-    temp_c, temp_f = read_temp()
-    print temp_c
-    if io.input(doorpin):
-        print "DOOR OPEN" 
-    i = datetime.datetime.now() #reads current system time
+    temp_c= read_temp()
+    doorOpen = detectDoor()
+    i = datetime.datetime.now() 
+    timeString = i.isoformat()
+    data = [{"temperature" : temp_c}, {"doorOpen" : doorOpen}, {"time" : timeString}]
+    jsonString = json.dumps(data)
+    print jsonString
+    values = {"data" : jsonString}
+    content = urllib.urlencode(values)
+    url = 'http://%s:3000/new_reading' % (ipaddress)
+    req = urllib2.Request(url, content)
+    #reads current system time
     #builds a url for an http get request
-    url = 'http://%s:3000/new_reading?temp=%f&time=%s' % (ipaddress, temp_c, i.isoformat())
+    
     response = urllib2.urlopen(url)
     html = response.read()
     time.sleep(1) #sleep until its time to take another temp reading
