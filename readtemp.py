@@ -12,7 +12,7 @@ io.setmode(io.BCM)
 doorpin = 23
 io.setup(doorpin, io.IN, pull_up_down=io.PUD_UP)
 
-ipaddress = "169.254.65.56"
+ipaddress = "169.254.10.73"
 
 #sets up the raspberry pi to read the temperature input 
 os.system('sudo modprobe w1-gpio')
@@ -53,8 +53,13 @@ def detectDoor():
 
 while True:
     #reads temperature every second and sends to server
-    temp_c= read_temp()
+    try:
+        temp_c = read_temp()
+    except:
+        print "unable to read temperature"
+        temp_c = "nil"
     doorOpen = detectDoor()
+    #reads current system time
     i = datetime.datetime.now() 
     timeString = i.isoformat()
     data = [{"temperature" : temp_c}, {"doorOpen" : doorOpen}, {"time" : timeString}]
@@ -62,11 +67,11 @@ while True:
     print jsonString
     values = {"data" : jsonString}
     content = urllib.urlencode(values)
-    url = 'http://%s:3000/new_reading' % (ipaddress)
+    url = 'http://%s:3000/new_reading/' % (ipaddress)
     req = urllib2.Request(url, content)
-    #reads current system time
-    #builds a url for an http get request
-    
-    response = urllib2.urlopen(url)
-    html = response.read()
-    time.sleep(1) #sleep until its time to take another temp reading
+    try:  
+        response = urllib2.urlopen(url, timeout = 5)
+        html = response.read()
+    except:
+        print "HTTP request failed"
+    time.sleep(5) #sleep until its time to take another temp reading
