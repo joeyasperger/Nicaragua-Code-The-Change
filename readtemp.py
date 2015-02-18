@@ -33,13 +33,15 @@ def read_temp(device_file):
         temp_c = float(temp_string) / 1000.0
         #temp_f = temp_c * 9.0 / 5.0 + 32.0
         return temp_c
-    
+
+# returns whether the door is currently open or closed
 def detectDoor():
     if io.input(doorpin):
         return True
     else:
         return False 
 
+# sends an HTTP post request to the server containing the sensor data
 def postToServer(connection, data):
     content = urllib.urlencode(data)
     headers = {}
