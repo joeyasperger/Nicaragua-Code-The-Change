@@ -8,9 +8,12 @@ import time
 import datetime
 import RPi.GPIO as io
 import json
+import sys
+import Adafruit_DHT
 
+DHTpin = 4
 doorpin = 23
-ipaddress = "169.254.10.73"
+ipaddress = "169.254.209.41"
 
 #reads the raw temperature data from the file w1_slave 
 def read_temp_raw(device_file):
@@ -41,6 +44,19 @@ def detectDoor():
     else:
         return False 
 
+def getserial():
+  # Extract serial from cpuinfo file
+  cpuserial = "0000000000000000"
+  try:
+    f = open('/proc/cpuinfo','r')
+    for line in f:
+      if line[0:6]=='Serial':
+        cpuserial = line[10:26]
+    f.close()
+  except:
+    cpuserial = "ERROR000000000"
+  return cpuserial
+
 # sends an HTTP post request to the server containing the sensor data
 def postToServer(connection, data):
     content = urllib.urlencode(data)
@@ -51,13 +67,14 @@ def postToServer(connection, data):
 
 def main():
     # set up for reading temperature sensor
-    os.system('sudo modprobe w1-gpio')
-    os.system('sudo modprobe w1-therm')
+    
+    # os.system('sudo modprobe w1-gpio')
+    # os.system('sudo modprobe w1-therm')
 
-    #gets the file path to read the temperature from 
-    base_dir = '/sys/bus/w1/devices/'
-    device_folder = glob.glob(base_dir + '28*')[0]
-    device_file = device_folder + '/w1_slave'
+    # #gets the file path to read the temperature from 
+    # base_dir = '/sys/bus/w1/devices/'
+    # device_folder = glob.glob(base_dir + '28*')[0]
+    # device_file = device_folder + '/w1_slave'
   
     # set up for reading door switch
     io.setmode(io.BCM)
@@ -68,7 +85,8 @@ def main():
     while True:
         #collects data and sends to server in loop
         try:
-            temp_c = read_temp(device_file)
+            #temp_c = read_temp(device_file)
+            humidity, temperature = Adafruit_DHT.read_retry(22, DHTpin)
         except Exception as e:
             print "Unable to read temperature"
             print type(e)
@@ -77,7 +95,8 @@ def main():
         doorOpen = detectDoor()
         currentTime = datetime.datetime.now() 
         timeString = currentTime.isoformat()
-        data = [{"temperature" : temp_c}, {"doorOpen" : doorOpen}, {"time" : timeString}]
+        serial = getserial()
+        data = [{"serial number" : serial}, {"temperature" : temperature}, {"doorOpen" : doorOpen}, {"time" : timeString}, {"humidity" : humidity}]
         jsonString = json.dumps(data)
         print jsonString
         values = {"data" : jsonString}
