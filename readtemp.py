@@ -37,7 +37,7 @@ def read_temp(device_file):
         #temp_f = temp_c * 9.0 / 5.0 + 32.0
         return temp_c
 
-# returns whether the door is currently open or closed
+# returns true if the door is open
 def detectDoor():
     if io.input(doorpin):
         return True
@@ -65,17 +65,30 @@ def postToServer(connection, data):
     response = connection.getresponse()
     html = response.read()
 
-def main():
-    # set up for reading temperature sensor
-    
-    # os.system('sudo modprobe w1-gpio')
-    # os.system('sudo modprobe w1-therm')
+# monitors when the door is opened and returns array of time and duration of each opening
+# runs for the time passed in seconds
+def getDoorData(timeInterval):
+    doorData = []
+    doorWasOpen = False
+    duration = 0
+    for i in range(1,timeInterval):
+        currentState = detectDoor()
+        if currentState:
+            if doorWasOpen:
+                duration += 1
+            else:
+                startTime = datetime.datetime.now()
+        else:
+            if doorWasOpen:
+                duration += 1
+                data = {"timeOpened" : startTime.isoformat(), "duration" : duration}
+                doorData.append(data)
+                duration = 0
+        doorWasOpen = currentState
+        time.sleep(1)
+    return doorData
 
-    # #gets the file path to read the temperature from 
-    # base_dir = '/sys/bus/w1/devices/'
-    # device_folder = glob.glob(base_dir + '28*')[0]
-    # device_file = device_folder + '/w1_slave'
-  
+def main():
     # set up for reading door switch
     io.setmode(io.BCM)
     io.setup(doorpin, io.IN, pull_up_down=io.PUD_UP)
@@ -84,24 +97,23 @@ def main():
 
     while True:
         #collects data and sends to server in loop
+        doorData = getDoorData(30)
+        print doorData
         try:
-            #temp_c = read_temp(device_file)
             humidity, temperature = Adafruit_DHT.read_retry(22, DHTpin)
         except Exception as e:
             print "Unable to read temperature"
             print type(e)
             print e
             temp_c = "nil"
-        doorOpen = detectDoor()
         currentTime = datetime.datetime.now() 
         timeString = currentTime.isoformat()
         serial = getserial()
-        data = [{"serial number" : serial}, {"temperature" : temperature}, {"doorOpen" : doorOpen}, {"time" : timeString}, {"humidity" : humidity}]
+        data = [{"serial number" : serial}, {"temperature" : temperature}, {"doorData" : doorData}, {"time" : timeString}, {"humidity" : humidity}]
         jsonString = json.dumps(data)
         print jsonString
         values = {"data" : jsonString}
         postToServer(connection, values)
-        time.sleep(5) #sleep until its time to take another temp reading
 
 if __name__ == "__main__":
     main()
